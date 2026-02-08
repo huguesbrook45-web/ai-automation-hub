@@ -1,11 +1,8 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2026-01-28.clover' as any,
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
