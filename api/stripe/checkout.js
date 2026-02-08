@@ -1,5 +1,41 @@
 import Stripe from 'stripe';
 
+// Product definitions (same as server/products.ts)
+const PRODUCTS = {
+  product_starter_pack: {
+    name: 'Solopreneur Automation Starter Pack',
+    price: 3900,
+  },
+  product_support_blueprint: {
+    name: 'Customer Support Automation Blueprint',
+    price: 5900,
+  },
+  product_data_management: {
+    name: 'Data Management & Reporting Automation',
+    price: 5900,
+  },
+  product_premium_monthly: {
+    name: 'Premium Membership - Monthly',
+    price: 2900,
+    recurring: { interval: 'month' },
+  },
+  product_premium_yearly: {
+    name: 'Premium Membership - Yearly',
+    price: 29900,
+    recurring: { interval: 'year' },
+  },
+  product_pro_monthly: {
+    name: 'Pro Membership - Monthly',
+    price: 9900,
+    recurring: { interval: 'month' },
+  },
+  product_pro_yearly: {
+    name: 'Pro Membership - Yearly',
+    price: 99900,
+    recurring: { interval: 'year' },
+  },
+};
+
 export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -28,40 +64,52 @@ export default async function handler(req, res) {
     }
 
     const stripe = new Stripe(stripeKey);
-    const { productId, email, name, amount } = req.body;
+    const { productId } = req.body;
 
-    console.log('Checkout request:', { productId, email, name, amount });
+    console.log('Checkout request for product:', productId);
 
-    if (!productId || !email || !amount) {
-      return res.status(400).json({ 
-        error: 'Missing required fields',
-        received: { productId, email, name, amount }
-      });
+    if (!productId) {
+      return res.status(400).json({ error: 'Product ID is required' });
     }
 
+    // Look up product
+    const product = PRODUCTS[productId];
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    console.log('Creating checkout session for:', product.name, 'Price:', product.price);
+
     // Create a checkout session
-    const session = await stripe.checkout.sessions.create({
+    const sessionConfig = {
       payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: name || 'Automation Product',
+              name: product.name,
             },
-            unit_amount: Math.round(amount),
+            unit_amount: Math.round(product.price),
           },
           quantity: 1,
         },
       ],
-      mode: 'payment',
       success_url: `${req.headers.origin || 'https://automate-business.vercel.app'}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.origin || 'https://automate-business.vercel.app'}/products`,
-      customer_email: email,
-    });
+    };
+
+    // Add mode based on product type
+    if (product.recurring) {
+      sessionConfig.mode = 'subscription';
+    } else {
+      sessionConfig.mode = 'payment';
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     console.log('Checkout session created:', session.id);
-    res.status(200).json({ url: session.url });
+    res.status(200).json({ checkoutUrl: session.url });
   } catch (error) {
     console.error('Stripe error:', error);
     res.status(500).json({ 
