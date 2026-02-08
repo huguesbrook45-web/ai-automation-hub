@@ -2,7 +2,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2023-10-16',
+  apiVersion: '2026-01-28.clover' as any,
 });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -11,9 +11,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { productId, email, name } = req.body;
+    const { productId, email, name, amount } = req.body;
 
-    if (!productId || !email) {
+    if (!productId || !email || !amount) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             product_data: {
               name: name || 'Product',
             },
-            unit_amount: 3900, // $39.00 - adjust based on product
+            unit_amount: amount,
           },
           quantity: 1,
         },
