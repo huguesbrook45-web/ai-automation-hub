@@ -52,26 +52,37 @@ export default function Products() {
       setCheckoutLoading(productId);
       notifyInfo('Processing', 'Redirecting to checkout...');
 
+      console.log('Starting checkout for product:', productId);
+
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId }),
       });
 
+      console.log('Checkout response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to create checkout session');
+        const errorData = await response.json();
+        console.error('Checkout error response:', errorData);
+        throw new Error(errorData.error || 'Failed to create checkout session');
       }
 
-      const { checkoutUrl } = await response.json();
+      const data = await response.json();
+      console.log('Checkout response data:', data);
+
+      const checkoutUrl = data.checkoutUrl || data.url;
 
       if (checkoutUrl) {
         // Open checkout in new tab
         window.open(checkoutUrl, '_blank');
         notifySuccess('Checkout', 'Opening Stripe checkout in a new tab');
+      } else {
+        throw new Error('No checkout URL returned');
       }
     } catch (error) {
       console.error('Checkout error:', error);
-      notifyError('Checkout Error', 'Failed to start checkout. Please try again.');
+      notifyError('Checkout Error', error instanceof Error ? error.message : 'Failed to start checkout. Please try again.');
     } finally {
       setCheckoutLoading(null);
     }
